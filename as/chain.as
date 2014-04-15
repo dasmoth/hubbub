@@ -1,5 +1,5 @@
 table chain
-"..."
+"BED representation of a chain file."
   (
    string chrom;       "Reference sequence chromosome or scaffold"
    uint   chromStart;  "Start position in chromosome"
