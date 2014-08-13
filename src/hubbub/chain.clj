@@ -12,40 +12,61 @@
     (subs c 3)
     c))
 
-(defn- read-chain [s]
-  (let [header (split-string (.readLine s) " ")]
-    (cond
-     (= (first header) "chain")
-      (let [[chain-score
-	     src-chr src-len src-ori src-min src-max
-	     dest-chr dest-len dest-ori dest-min dest-max
-	     chain-id]
-	    (rest header)]
-	(loop [blocks 'nil
-	       cum-src 0
-	       cum-dest 0]
-	  (let [toks (split-string (.readLine s) "\t")]
-	    (cond
-	     (zero? (count toks))  {:srcChr (clean-chr src-chr)
-				     :srcOri src-ori
-				     :srcMin (parse-int src-min)
-				     :srcMax (parse-int src-max)
-				     :destChr (clean-chr dest-chr)
-				     :destOri dest-ori
-				     :destMin (parse-int dest-min)
-				     :destMax (parse-int dest-max)
-				     :blocks (reverse blocks)}
-	     :else (let [[bs & offsets] (map parse-int toks)]
-		     (recur (cons (list cum-src cum-dest bs) blocks)
-			    (if (= (count offsets) 2) (+ cum-src bs (first offsets)) -1)
-			    (if (= (count offsets) 2) (+ cum-dest bs (second offsets)) -1)))))))
-      :else 'nil)))
+(defn- read-blocks [block-lines]
+  (loop [lines block-lines
+         blocks []
+         cum-src 0
+         cum-dest 0]
+    (if (seq lines)
+      (let [[bs x y] (map parse-int (str/split (first lines) #"\s"))]
+        (recur (rest lines)
+               (conj blocks [cum-src cum-dest bs])
+               (+ cum-src bs (or x 0))
+               (+ cum-dest bs (or y 0))))
+      blocks)))
+               
 
-(defn read-chainset 
-  "Return a lazy seq of chains from stream s"
-  [s]
-  (if-let [c (read-chain s)]
-    (cons c (lazy-seq (read-chainset s)))))
+(defn- read-chain [chain-line rest-lines ]
+   (let [[_ chain-score
+	  src-chr src-len src-ori src-min src-max
+	  dest-chr dest-len dest-ori dest-min dest-max
+	  chain-id] (split-string chain-line " ")
+
+          blocks (read-blocks rest-lines)]
+     {:srcChr  (clean-chr src-chr)
+      :srcOri  src-ori
+      :srcMin  (parse-int src-min)
+      :srcMax  (parse-int src-max)
+      :destChr (clean-chr dest-chr)
+      :destOri dest-ori
+      :destMin (parse-int dest-min)
+      :destMax (parse-int dest-max)
+      :blocks  (if (empty? blocks)
+                 [0 0 (- (parse-int src-max) (parse-int src-min))]
+                 blocks)}))
+
+(defn- read-chainset* [s]  
+  (when (seq s)
+    (let [[[chain-line] [next-line]] s]
+      (if (or (not next-line)
+              (.startsWith next-line "chain"))
+        (cons (read-chain chain-line [])
+              (lazy-seq (read-chainset* (rest s))))
+        (cons (read-chain chain-line (second s))
+              (lazy-seq (read-chainset* (rest (rest s)))))))))
+
+(defn- chain-line? [^String l]
+  (not (or (empty? l)
+           (.startsWith l "#"))))
+
+(defn read-chainset
+  "Return a lazy seq of chains from reader `r`"
+  [r]
+  (->> (line-seq r)
+       (filter chain-line?)
+       (partition-by (fn [line]
+                       (if (.startsWith line "chain") line)))
+       (read-chainset*)))
 
 (defn split-chain
   "Split a single chain into multiple chains consisting of n or fewer blocks"
