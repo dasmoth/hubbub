@@ -42,7 +42,7 @@
       :destMin (parse-int dest-min)
       :destMax (parse-int dest-max)
       :blocks  (if (empty? blocks)
-                 [0 0 (- (parse-int src-max) (parse-int src-min))]
+                 [[0 0 (- (parse-int src-max) (parse-int src-min))]]
                  blocks)}))
 
 (defn- read-chainset* [s]  
