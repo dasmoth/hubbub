@@ -99,6 +99,22 @@
                        (- d dest-pmin)
                        l]))}))
 
+(defn reverse-chain
+  "Convert a chain with :srcChr \"a\" and :destChr \"b\" to an equivalent
+   chain with :srcChr \"a\" and :destChr \"b\"."
+  [chain]
+  {:srcChr      (:destChr chain)
+   :srcOri      (:destOri chain)
+   :srcMin      (:destMin chain)
+   :srcMax      (:destMax chain)
+   :destChr     (:srcChr chain)
+   :destOri     (:srcOri chain)
+   :destMin     (:srcMin chain)
+   :destMax     (:srcMax chain)
+   :blocks      (mapv (fn [[s d l]]
+                        [d s l])
+                      (:blocks chain))})
+
 (defn split-large-chains 
   "Filter a sequence of chains, splitting any which contain more than b blocks"
   [n chains]
